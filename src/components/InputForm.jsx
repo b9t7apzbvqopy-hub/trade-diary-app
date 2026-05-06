@@ -81,6 +81,13 @@ export default function InputForm({ onSave }) {
       return;
     }
 
+    // profit を数値化し NaN を弾く
+    const profitNum = parseInt(formData.profit, 10);
+    if (Number.isNaN(profitNum)) {
+      window.alert('利益/損失は数値で入力してください');
+      return;
+    }
+
     setIsSaving(true);
 
     try {
@@ -88,8 +95,9 @@ export default function InputForm({ onSave }) {
       await Promise.resolve(
         onSave({
           ...formData,
+          screenshots: Array.isArray(formData.screenshots) ? formData.screenshots : [],
           id: Date.now(),
-          profit: parseInt(formData.profit)
+          profit: profitNum
         })
       );
 
