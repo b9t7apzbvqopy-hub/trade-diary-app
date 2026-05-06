@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 
+const MAX_SCREENSHOTS = 5;
+
 const getLocalDateTimeString = () => {
   const now = new Date();
   const year = now.getFullYear();
@@ -21,6 +23,8 @@ export default function InputForm({ onSave }) {
     environment: '',
     screenshots: []
   });
+  const [isSaving, setIsSaving] = useState(false);
+  const [showToast, setShowToast] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -32,6 +36,13 @@ export default function InputForm({ onSave }) {
 
   const handleScreenshotChange = (e) => {
     const files = Array.from(e.target.files);
+    const current = formData.screenshots.length;
+    const selected = files.length;
+    if (current + selected > MAX_SCREENSHOTS) {
+      window.alert(`スクショは5枚までです。現在 ${current} 枚です。`);
+      e.target.value = '';
+      return;
+    }
     files.forEach(file => {
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -54,6 +65,7 @@ export default function InputForm({ onSave }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (formData.pair && formData.profit) {
+      setIsSaving(true);
       onSave({
         ...formData,
         id: Date.now(),
@@ -69,11 +81,51 @@ export default function InputForm({ onSave }) {
         environment: '',
         screenshots: []
       });
+      setShowToast(true);
+      setTimeout(() => {
+        setShowToast(false);
+        setIsSaving(false);
+      }, 2000);
     }
   };
 
+  // スクショ枚数表示の色・併記メッセージ分岐
+  const screenshotCount = formData.screenshots.length;
+  let counterColor = '#9e9e9e';
+  let counterSuffix = '';
+  if (screenshotCount === 0) {
+    counterColor = '#9e9e9e';
+  } else if (screenshotCount >= 1 && screenshotCount <= 3) {
+    counterColor = '#4caf50';
+  } else if (screenshotCount === 4) {
+    counterColor = '#ff9800';
+    counterSuffix = '（残り1枚）';
+  } else if (screenshotCount >= 5) {
+    counterColor = '#f44336';
+    counterSuffix = '⚠️ 上限到達';
+  }
+  const isMaxReached = screenshotCount >= MAX_SCREENSHOTS;
+
   return (
     <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', marginBottom: '20px' }}>
+      {showToast && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: '#4caf50',
+          color: '#ffffff',
+          padding: '12px 24px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          fontSize: '14px',
+          fontWeight: 'bold',
+          zIndex: 10000
+        }}>
+          ✅ 保存しました
+        </div>
+      )}
       <h2>📝 トレード入力</h2>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
         <div>
@@ -120,7 +172,30 @@ export default function InputForm({ onSave }) {
 
         <div>
           <label>📸 スクショ</label>
-          <input type="file" multiple accept="image/*" onChange={handleScreenshotChange} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+          <span style={{
+            fontSize: '14px',
+            fontWeight: 'bold',
+            marginBottom: '8px',
+            display: 'block',
+            color: counterColor
+          }}>
+            📎 スクショ：{screenshotCount} / 5 枚{counterSuffix && ` ${counterSuffix}`}
+          </span>
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={handleScreenshotChange}
+            disabled={isMaxReached}
+            style={{
+              width: '100%',
+              padding: '8px',
+              borderRadius: '4px',
+              border: '1px solid #ddd',
+              opacity: isMaxReached ? 0.6 : 1,
+              cursor: isMaxReached ? 'not-allowed' : 'pointer'
+            }}
+          />
           {formData.screenshots.length > 0 && (
             <div style={{ marginTop: '10px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '10px' }}>
               {formData.screenshots.map((screenshot, index) => (
@@ -133,7 +208,22 @@ export default function InputForm({ onSave }) {
           )}
         </div>
 
-        <button type="submit" style={{ padding: '12px', backgroundColor: '#3498db', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>保存</button>
+        <button
+          type="submit"
+          disabled={isSaving}
+          style={{
+            padding: '12px',
+            backgroundColor: '#3498db',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: isSaving ? 'not-allowed' : 'pointer',
+            fontWeight: 'bold',
+            opacity: isSaving ? 0.6 : 1
+          }}
+        >
+          {isSaving ? '保存中...' : '保存'}
+        </button>
       </form>
     </div>
   );
