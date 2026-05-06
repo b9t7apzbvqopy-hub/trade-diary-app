@@ -62,15 +62,38 @@ export default function InputForm({ onSave }) {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (formData.pair && formData.profit) {
-      setIsSaving(true);
-      onSave({
-        ...formData,
-        id: Date.now(),
-        profit: parseInt(formData.profit)
-      });
+
+    // 連打防止：既に保存中なら何もしない
+    if (isSaving) return;
+
+    // バリデーション（必須項目チェック）
+    if (
+      !formData.pair ||
+      !formData.strategy ||
+      !formData.direction ||
+      formData.profit === '' ||
+      formData.profit === null ||
+      formData.profit === undefined
+    ) {
+      window.alert('必須項目を入力してください（振替・手法・買売・利益/損失）');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      // onSave 呼び出し（同期・非同期どちらにも対応）
+      await Promise.resolve(
+        onSave({
+          ...formData,
+          id: Date.now(),
+          profit: parseInt(formData.profit)
+        })
+      );
+
+      // フォームクリア
       setFormData({
         date: getLocalDateTimeString(),
         pair: '',
@@ -81,7 +104,13 @@ export default function InputForm({ onSave }) {
         environment: '',
         screenshots: []
       });
+
+      // 成功時のみトースト表示
       setShowToast(true);
+    } catch (err) {
+      console.error('保存エラー:', err);
+      window.alert('保存に失敗しました。再度お試しください。');
+    } finally {
       setTimeout(() => {
         setShowToast(false);
         setIsSaving(false);
