@@ -1,8 +1,18 @@
 import React, { useState } from 'react';
 
+const getLocalDateTimeString = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 export default function InputForm({ onSave }) {
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().slice(0, 16),
+    date: getLocalDateTimeString(),
     pair: '',
     strategy: 'scalping',
     direction: 'buy',
@@ -50,7 +60,7 @@ export default function InputForm({ onSave }) {
         profit: parseInt(formData.profit)
       });
       setFormData({
-        date: new Date().toISOString().slice(0, 16),
+        date: getLocalDateTimeString(),
         pair: '',
         strategy: 'scalping',
         direction: 'buy',
