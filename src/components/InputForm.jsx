@@ -109,7 +109,12 @@ export default function InputForm({ onSave }) {
       setShowToast(true);
     } catch (err) {
       console.error('保存エラー:', err);
-      window.alert('保存に失敗しました。再度お試しください。');
+      window.alert(
+        '保存に失敗しました。\n\n' +
+        'エラー種別: ' + (err && err.name ? err.name : '不明') + '\n' +
+        'エラー内容: ' + (err && err.message ? err.message : '不明') + '\n\n' +
+        'この内容を開発者にお伝えください。'
+      );
     } finally {
       setTimeout(() => {
         setShowToast(false);
