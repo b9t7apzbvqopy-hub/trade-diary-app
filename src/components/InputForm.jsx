@@ -34,25 +34,57 @@ export default function InputForm({ onSave }) {
     }));
   };
 
-  const handleScreenshotChange = (e) => {
-    const files = Array.from(e.target.files);
+  // 画像圧縮（JPEG 品質 60%、最大幅 1280px、縦横比維持）
+  const compressImage = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          const MAX_WIDTH = 1280;
+          let width = img.width;
+          let height = img.height;
+          if (width > MAX_WIDTH) {
+            height = height * (MAX_WIDTH / width);
+            width = MAX_WIDTH;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.6));
+        };
+        img.onerror = reject;
+        img.src = ev.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleScreenshotChange = async (e) => {
+    const input = e.target;
+    const files = Array.from(input.files);
     const current = formData.screenshots.length;
     const selected = files.length;
     if (current + selected > MAX_SCREENSHOTS) {
       window.alert(`スクショは5枚までです。現在 ${current} 枚です。`);
-      e.target.value = '';
+      input.value = '';
       return;
     }
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setFormData(prev => ({
-          ...prev,
-          screenshots: [...prev.screenshots, event.target.result]
-        }));
-      };
-      reader.readAsDataURL(file);
-    });
+    try {
+      const compressed = await Promise.all(files.map(file => compressImage(file)));
+      setFormData(prev => ({
+        ...prev,
+        screenshots: [...prev.screenshots, ...compressed]
+      }));
+    } catch (err) {
+      console.error('画像圧縮エラー:', err);
+      window.alert('画像の読み込みに失敗しました。別のファイルを試してください。');
+    } finally {
+      input.value = '';
+    }
   };
 
   const removeScreenshot = (index) => {
