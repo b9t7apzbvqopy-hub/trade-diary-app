@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const MAX_SCREENSHOTS = 5;
+const MAX_SCREENSHOTS = 4;
 
 const getLocalDateTimeString = () => {
   const now = new Date();
@@ -69,7 +69,7 @@ export default function InputForm({ onSave }) {
     const current = formData.screenshots.length;
     const selected = files.length;
     if (current + selected > MAX_SCREENSHOTS) {
-      window.alert(`スクショは5枚までです。現在 ${current} 枚です。`);
+      window.alert(`スクショは4枚までです。現在 ${current} 枚です。`);
       input.value = '';
       return;
     }
@@ -169,12 +169,12 @@ export default function InputForm({ onSave }) {
   let counterSuffix = '';
   if (screenshotCount === 0) {
     counterColor = '#9e9e9e';
-  } else if (screenshotCount >= 1 && screenshotCount <= 3) {
+  } else if (screenshotCount >= 1 && screenshotCount <= 2) {
     counterColor = '#4caf50';
-  } else if (screenshotCount === 4) {
+  } else if (screenshotCount === 3) {
     counterColor = '#ff9800';
     counterSuffix = '（残り1枚）';
-  } else if (screenshotCount >= 5) {
+  } else if (screenshotCount >= 4) {
     counterColor = '#f44336';
     counterSuffix = '⚠️ 上限到達';
   }
@@ -253,7 +253,7 @@ export default function InputForm({ onSave }) {
             display: 'block',
             color: counterColor
           }}>
-            📎 スクショ：{screenshotCount} / 5 枚{counterSuffix && ` ${counterSuffix}`}
+            📎 スクショ：{screenshotCount} / 4 枚{counterSuffix && ` ${counterSuffix}`}
           </span>
           <input
             type="file"
