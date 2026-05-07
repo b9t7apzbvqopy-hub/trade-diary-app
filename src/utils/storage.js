@@ -1,66 +1,38 @@
-// localStorage の trades キーから配列を安全に読み出す
-const readTrades = () => {
-  let raw = null;
-  try {
-    raw = localStorage.getItem('trades');
-  } catch (e) {
-    console.warn('localStorage.getItem 失敗:', e);
-    return [];
-  }
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (e) {
-    console.warn('既存 trades の JSON.parse に失敗。空配列で再開します。', e);
-    return [];
-  }
+import {
+  getTradesJson,
+  saveTradesJson,
+  deleteImageByName,
+  deleteAllImages,
+} from './drive.js';
+
+export const getTrades = async (token) => {
+  const { trades } = await getTradesJson(token);
+  return trades;
 };
 
-// localStorage に trades 配列を書き込む。失敗時は判別可能な Error を再throw
-const writeTrades = (trades) => {
-  let json;
-  try {
-    json = JSON.stringify(trades);
-  } catch (e) {
-    throw new Error('データのシリアライズに失敗しました: ' + (e && e.message ? e.message : '不明'));
-  }
-  try {
-    localStorage.setItem('trades', json);
-  } catch (e) {
-    const name = e && e.name ? e.name : '不明';
-    if (
-      name === 'QuotaExceededError' ||
-      name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
-      (e && e.code === 22)
-    ) {
-      throw new Error(
-        '容量上限に達しました。スクショを減らすか、設定タブから古いデータを削除してください。(' + name + ')'
-      );
-    }
-    if (name === 'SecurityError') {
-      throw new Error(
-        'ブラウザのプライバシー設定により localStorage が利用できません。プライベートブラウズを解除してください。(' + name + ')'
-      );
-    }
-    throw new Error(
-      'localStorage への保存に失敗しました: ' + (e && e.message ? e.message : name)
-    );
-  }
-};
-
-export const saveTrade = (trade) => {
-  const trades = readTrades();
+export const saveTrade = async (token, trade) => {
+  const { trades } = await getTradesJson(token);
   trades.push(trade);
-  writeTrades(trades);
+  await saveTradesJson(token, trades);
 };
 
-export const getTrades = () => {
-  return readTrades();
-};
-
-export const deleteTrade = (id) => {
-  const trades = readTrades();
+export const deleteTrade = async (token, id) => {
+  const { trades } = await getTradesJson(token);
+  const target = trades.find(t => t.id === id);
   const filtered = trades.filter(t => t.id !== id);
-  writeTrades(filtered);
+  await saveTradesJson(token, filtered);
+  if (target && Array.isArray(target.imageRefs)) {
+    for (const name of target.imageRefs) {
+      try { await deleteImageByName(token, name); } catch (e) { console.warn('画像削除失敗:', name, e); }
+    }
+  }
+};
+
+export const overwriteAllTrades = async (token, trades) => {
+  await saveTradesJson(token, Array.isArray(trades) ? trades : []);
+};
+
+export const resetAll = async (token) => {
+  await saveTradesJson(token, []);
+  await deleteAllImages(token);
 };
