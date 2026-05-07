@@ -1,8 +1,60 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { downloadImageBlob } from '../utils/drive.js';
 
-export default function TradeList({ trades, onDelete }) {
+export default function TradeList({ token, trades, loading, onDelete }) {
   // 拡大表示用のスクショ URL（null なら非表示）
   const [zoomedImage, setZoomedImage] = useState(null);
+
+  // ファイル名 → blob URL のマップ
+  const [imageUrls, setImageUrls] = useState({});
+  const urlsRef = useRef({});
+
+  // trades 変更時に画像を一括取得（並列）
+  useEffect(() => {
+    if (!token || !Array.isArray(trades)) return;
+    let cancelled = false;
+    const allRefs = new Set();
+    trades.forEach(t => {
+      if (Array.isArray(t.imageRefs)) t.imageRefs.forEach(n => allRefs.add(n));
+    });
+    const missing = [...allRefs].filter(n => !urlsRef.current[n]);
+    if (missing.length === 0) return;
+
+    Promise.all(
+      missing.map(async (name) => {
+        try {
+          const blob = await downloadImageBlob(token, name);
+          if (!blob) return [name, null];
+          const url = URL.createObjectURL(blob);
+          return [name, url];
+        } catch (e) {
+          console.warn('画像取得失敗:', name, e);
+          return [name, null];
+        }
+      })
+    ).then((pairs) => {
+      if (cancelled) {
+        pairs.forEach(([, url]) => { if (url) URL.revokeObjectURL(url); });
+        return;
+      }
+      const additions = {};
+      pairs.forEach(([name, url]) => { if (url) additions[name] = url; });
+      urlsRef.current = { ...urlsRef.current, ...additions };
+      setImageUrls(prev => ({ ...prev, ...additions }));
+    });
+
+    return () => { cancelled = true; };
+  }, [token, trades]);
+
+  // unmount で全 blob URL を revoke
+  useEffect(() => {
+    return () => {
+      Object.values(urlsRef.current).forEach(url => {
+        try { URL.revokeObjectURL(url); } catch { /* noop */ }
+      });
+      urlsRef.current = {};
+    };
+  }, []);
 
   // 削除確認
   const handleDelete = (id) => {
@@ -14,7 +66,9 @@ export default function TradeList({ trades, onDelete }) {
   return (
     <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px' }}>
       <h2>📋 トレード一覧</h2>
-      {trades.length === 0 ? (
+      {loading ? (
+        <p style={{ color: '#999' }}>読み込み中...</p>
+      ) : trades.length === 0 ? (
         <p style={{ color: '#999' }}>トレードがまだありません</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -54,27 +108,44 @@ export default function TradeList({ trades, onDelete }) {
                 </div>
               )}
 
-              {/* スクショ */}
-              {trade.screenshots && trade.screenshots.length > 0 && (
+              {/* スクショ（Drive から取得） */}
+              {Array.isArray(trade.imageRefs) && trade.imageRefs.length > 0 && (
                 <div style={{ marginBottom: '4px' }}>
                   <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#666', marginBottom: '6px' }}>📸 スクショ</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                    {trade.screenshots.map((src, idx) => (
-                      <img
-                        key={idx}
-                        src={src}
-                        alt={`スクショ${idx + 1}`}
-                        onClick={() => setZoomedImage(src)}
-                        style={{
-                          width: '120px',
-                          height: '90px',
-                          objectFit: 'cover',
-                          borderRadius: '4px',
-                          border: '1px solid #ddd',
-                          cursor: 'pointer'
-                        }}
-                      />
-                    ))}
+                    {trade.imageRefs.map((name, idx) => {
+                      const url = imageUrls[name];
+                      return (
+                        <div
+                          key={idx}
+                          style={{
+                            width: '120px',
+                            height: '90px',
+                            borderRadius: '4px',
+                            border: '1px solid #ddd',
+                            backgroundColor: '#eee',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            overflow: 'hidden',
+                            cursor: url ? 'pointer' : 'default',
+                            color: '#999',
+                            fontSize: '11px',
+                          }}
+                          onClick={() => { if (url) setZoomedImage(url); }}
+                        >
+                          {url ? (
+                            <img
+                              src={url}
+                              alt={`スクショ${idx + 1}`}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            '読み込み中...'
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

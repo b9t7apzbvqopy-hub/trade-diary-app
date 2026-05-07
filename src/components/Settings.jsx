@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 
-export default function Settings({ backgroundColor, onColorChange, onExport, onImport, onReset }) {
+export default function Settings({ backgroundColor, onColorChange, onExport, onImport, onReset, onLogout }) {
   const [importInput, setImportInput] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const presetColors = [
     { name: '白', value: '#ffffff' },
@@ -11,23 +12,46 @@ export default function Settings({ backgroundColor, onColorChange, onExport, onI
     { name: 'ピンク', value: '#fce4ec' }
   ];
 
-  const handleImport = () => {
-    if (importInput.trim()) {
-      try {
-        const data = JSON.parse(importInput);
-        onImport(data);
-        setImportInput('');
-        alert('インポート完了しました');
-      } catch (e) {
-        alert('無効な JSON です');
-      }
+  const handleImport = async () => {
+    if (!importInput.trim()) return;
+    let data;
+    try {
+      data = JSON.parse(importInput);
+    } catch {
+      alert('無効な JSON です');
+      return;
+    }
+    if (!window.confirm('現在のデータが上書きされます。よろしいですか？')) return;
+    setBusy(true);
+    try {
+      await onImport(data);
+      setImportInput('');
+      alert('インポート完了しました');
+    } catch (err) {
+      console.error(err);
+      alert('インポートに失敗しました: ' + (err && err.message ? err.message : '不明'));
+    } finally {
+      setBusy(false);
     }
   };
 
-  const handleReset = () => {
-    if (window.confirm('すべてのトレード履歴を削除してもよろしいですか？')) {
-      onReset();
+  const handleReset = async () => {
+    if (!window.confirm('すべてのトレード履歴と画像を削除します。よろしいですか？')) return;
+    setBusy(true);
+    try {
+      await onReset();
       alert('リセット完了しました');
+    } catch (err) {
+      console.error(err);
+      alert('リセットに失敗しました: ' + (err && err.message ? err.message : '不明'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleLogout = () => {
+    if (window.confirm('ログアウトしますか？')) {
+      onLogout();
     }
   };
 
@@ -71,15 +95,22 @@ export default function Settings({ backgroundColor, onColorChange, onExport, onI
           placeholder="JSON データを貼り付けてください"
           style={{ width: '100%', height: '120px', padding: '10px', borderRadius: '4px', border: '1px solid #ddd', fontFamily: 'monospace', fontSize: '12px', marginBottom: '10px' }}
         />
-        <button onClick={handleImport} style={{ padding: '10px 20px', backgroundColor: '#3498db', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+        <button onClick={handleImport} disabled={busy} style={{ padding: '10px 20px', backgroundColor: '#3498db', color: 'white', border: 'none', borderRadius: '4px', cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.6 : 1 }}>
           インポート
         </button>
       </div>
 
-      <div style={{ borderTop: '1px solid #ddd', paddingTop: '20px' }}>
+      <div style={{ marginBottom: '30px', borderTop: '1px solid #ddd', paddingTop: '20px' }}>
         <h3 style={{ marginBottom: '15px' }}>🔄 リセット</h3>
-        <button onClick={handleReset} style={{ padding: '10px 20px', backgroundColor: '#e74c3c', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+        <button onClick={handleReset} disabled={busy} style={{ padding: '10px 20px', backgroundColor: '#e74c3c', color: 'white', border: 'none', borderRadius: '4px', cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.6 : 1 }}>
           すべてのトレード履歴を削除
+        </button>
+      </div>
+
+      <div style={{ borderTop: '1px solid #ddd', paddingTop: '20px' }}>
+        <h3 style={{ marginBottom: '15px' }}>🔐 アカウント</h3>
+        <button onClick={handleLogout} style={{ padding: '10px 20px', backgroundColor: '#7f8c8d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+          ログアウト
         </button>
       </div>
     </div>

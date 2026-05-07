@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { computeNextSeq, buildImageName, uploadImage } from '../utils/drive.js';
 
 const MAX_SCREENSHOTS = 4;
 
@@ -12,7 +13,7 @@ const getLocalDateTimeString = () => {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
 
-export default function InputForm({ onSave }) {
+export default function InputForm({ token, onSave }) {
   const [formData, setFormData] = useState({
     date: getLocalDateTimeString(),
     pair: '',
@@ -125,11 +126,25 @@ export default function InputForm({ onSave }) {
     setIsSaving(true);
 
     try {
-      // onSave 呼び出し（同期・非同期どちらにも対応）
+      // 画像を Drive にアップロード → ファイル名を imageRefs に詰める
+      const imgs = Array.isArray(formData.screenshots) ? formData.screenshots : [];
+      const dateStr = (formData.date || '').split('T')[0];
+      const imageRefs = [];
+      if (imgs.length > 0) {
+        const baseSeq = await computeNextSeq(token, dateStr, formData.pair);
+        for (let i = 0; i < imgs.length; i++) {
+          const name = buildImageName(dateStr, formData.pair, baseSeq + i);
+          await uploadImage(token, name, imgs[i]);
+          imageRefs.push(name);
+        }
+      }
+
+      // onSave に imageRefs を渡す（screenshots は保存しない）
+      const { screenshots, ...rest } = formData;
       await Promise.resolve(
         onSave({
-          ...formData,
-          screenshots: Array.isArray(formData.screenshots) ? formData.screenshots : [],
+          ...rest,
+          imageRefs,
           id: Date.now(),
           profit: profitNum
         })
