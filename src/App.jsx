@@ -4,24 +4,94 @@ import TradeList from './components/TradeList.jsx';
 import Statistics from './components/Statistics.jsx';
 import Settings from './components/Settings.jsx';
 import Tabs from './components/Tabs.jsx';
-import { saveTrade, getTrades, deleteTrade } from './utils/storage.js';
+import Login from './components/Login.jsx';
+import {
+  saveTrade,
+  getTrades,
+  deleteTrade,
+  overwriteAllTrades,
+  resetAll,
+} from './utils/storage.js';
+import {
+  getStoredToken,
+  clearToken,
+  verifyToken,
+  requestAccessToken,
+  signOut,
+} from './utils/auth.js';
+import { resetFolderCache } from './utils/drive.js';
 import './App.css';
 
 export default function App() {
+  const [token, setToken] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [trades, setTrades] = useState([]);
+  const [tradesLoading, setTradesLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('input');
-  const [trades, setTrades] = useState(() => getTrades());
   const [backgroundColor, setBackgroundColor] = useState(() => {
     return localStorage.getItem('backgroundColor') || '#ffffff';
   });
 
-  const handleSaveTrade = (trade) => {
-    saveTrade(trade);
-    setTrades(getTrades());
+  // 起動時のトークン検証
+  useEffect(() => {
+    const stored = getStoredToken();
+    if (!stored) {
+      setAuthChecked(true);
+      return;
+    }
+    verifyToken(stored).then((ok) => {
+      if (ok) setToken(stored);
+      else clearToken();
+      setAuthChecked(true);
+    });
+  }, []);
+
+  // ログイン後の trades 取得
+  useEffect(() => {
+    if (!token) return;
+    setTradesLoading(true);
+    getTrades(token)
+      .then((data) => setTrades(Array.isArray(data) ? data : []))
+      .catch((err) => {
+        console.error('trades 取得失敗:', err);
+        if (err && err.code === 401) {
+          clearToken();
+          setToken(null);
+          window.alert('ログインの有効期限が切れました。再度ログインしてください。');
+        } else {
+          window.alert(err && err.message ? err.message : 'データ取得に失敗しました');
+        }
+      })
+      .finally(() => setTradesLoading(false));
+  }, [token]);
+
+  const handleLogin = async () => {
+    try {
+      const t = await requestAccessToken();
+      setToken(t);
+    } catch (err) {
+      console.error('ログイン失敗:', err);
+      window.alert(err && err.message ? err.message : 'ログインに失敗しました');
+    }
   };
 
-  const handleDeleteTrade = (id) => {
-    deleteTrade(id);
-    setTrades(getTrades());
+  const handleLogout = () => {
+    signOut();
+    resetFolderCache();
+    setToken(null);
+    setTrades([]);
+  };
+
+  const handleSaveTrade = async (trade) => {
+    await saveTrade(token, trade);
+    const next = await getTrades(token);
+    setTrades(Array.isArray(next) ? next : []);
+  };
+
+  const handleDeleteTrade = async (id) => {
+    await deleteTrade(token, id);
+    const next = await getTrades(token);
+    setTrades(Array.isArray(next) ? next : []);
   };
 
   const handleColorChange = (color) => {
@@ -40,9 +110,9 @@ export default function App() {
     a.click();
   };
 
-  const handleImport = (data) => {
+  const handleImport = async (data) => {
     if (data.trades && Array.isArray(data.trades)) {
-      localStorage.setItem('trades', JSON.stringify(data.trades));
+      await overwriteAllTrades(token, data.trades);
       setTrades(data.trades);
     }
     if (data.backgroundColor) {
@@ -51,10 +121,18 @@ export default function App() {
     }
   };
 
-  const handleReset = () => {
-    localStorage.removeItem('trades');
+  const handleReset = async () => {
+    await resetAll(token);
     setTrades([]);
   };
+
+  if (!authChecked) {
+    return null;
+  }
+
+  if (!token) {
+    return <Login onLogin={handleLogin} backgroundColor={backgroundColor} />;
+  }
 
   return (
     <div style={{ backgroundColor, minHeight: '100vh', transition: 'background-color 0.3s', padding: '20px' }}>
@@ -65,10 +143,21 @@ export default function App() {
         <Tabs activeTab={activeTab} onTabChange={setActiveTab} />
 
         <div>
-          {activeTab === 'input' && <InputForm onSave={handleSaveTrade} />}
-          {activeTab === 'list' && <TradeList trades={trades} onDelete={handleDeleteTrade} />}
+          {activeTab === 'input' && <InputForm token={token} onSave={handleSaveTrade} />}
+          {activeTab === 'list' && (
+            <TradeList token={token} trades={trades} loading={tradesLoading} onDelete={handleDeleteTrade} />
+          )}
           {activeTab === 'stats' && <Statistics trades={trades} />}
-          {activeTab === 'settings' && <Settings backgroundColor={backgroundColor} onColorChange={handleColorChange} onExport={handleExport} onImport={handleImport} onReset={handleReset} />}
+          {activeTab === 'settings' && (
+            <Settings
+              backgroundColor={backgroundColor}
+              onColorChange={handleColorChange}
+              onExport={handleExport}
+              onImport={handleImport}
+              onReset={handleReset}
+              onLogout={handleLogout}
+            />
+          )}
         </div>
       </div>
     </div>
