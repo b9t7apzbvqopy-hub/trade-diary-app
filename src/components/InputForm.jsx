@@ -34,26 +34,28 @@ export default function InputForm({ onSave }) {
     }));
   };
 
-  // 画像圧縮（JPEG 品質 60%、最大幅 1280px、縦横比維持）
+  // 画像圧縮（JPEG 品質 50%、最大長辺 1280px、縦横比維持）
   const compressImage = (file) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (ev) => {
         const img = new Image();
         img.onload = () => {
-          const MAX_WIDTH = 1280;
+          const MAX_LONG_EDGE = 1280;
           let width = img.width;
           let height = img.height;
-          if (width > MAX_WIDTH) {
-            height = height * (MAX_WIDTH / width);
-            width = MAX_WIDTH;
+          const longEdge = Math.max(width, height);
+          if (longEdge > MAX_LONG_EDGE) {
+            const scale = MAX_LONG_EDGE / longEdge;
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
           }
           const canvas = document.createElement('canvas');
           canvas.width = width;
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.6));
+          resolve(canvas.toDataURL('image/jpeg', 0.5));
         };
         img.onerror = reject;
         img.src = ev.target.result;
