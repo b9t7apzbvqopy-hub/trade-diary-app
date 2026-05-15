@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { downloadImageBlob } from '../utils/drive.js';
 
-export default function TradeList({ token, trades, loading, onDelete }) {
+export default function TradeList({ token, trades, loading, onDelete, onEdit }) {
   // 拡大表示用のスクショ URL（null なら非表示）
   const [zoomedImage, setZoomedImage] = useState(null);
 
@@ -81,7 +81,10 @@ export default function TradeList({ token, trades, loading, onDelete }) {
                   <span style={{ marginLeft: '10px', color: '#666' }}>{trade.pair}</span>
                   <span style={{ marginLeft: '10px', backgroundColor: '#e3f2fd', padding: '2px 6px', borderRadius: '3px', fontSize: '12px' }}>{trade.strategy}</span>
                 </div>
-                <button onClick={() => handleDelete(trade.id)} style={{ backgroundColor: '#e74c3c', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>削除</button>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button onClick={() => onEdit && onEdit(trade)} style={{ backgroundColor: '#3498db', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>修正</button>
+                  <button onClick={() => handleDelete(trade.id)} style={{ backgroundColor: '#e74c3c', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>削除</button>
+                </div>
               </div>
 
               {/* 損益行 */}

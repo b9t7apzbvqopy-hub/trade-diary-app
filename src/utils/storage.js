@@ -28,6 +28,19 @@ export const deleteTrade = async (token, id) => {
   }
 };
 
+// id 一致レコードを updatedTrade で置き換えて Drive に上書き保存。
+// imageRefs は呼び出し側で更新前のものをそのまま渡す前提（画像ファイルは変更しない）。
+export const updateTrade = async (token, updatedTrade) => {
+  const { trades } = await getTradesJson(token);
+  const index = trades.findIndex(t => t.id === updatedTrade.id);
+  if (index === -1) {
+    throw new Error('更新対象のトレードが見つかりませんでした');
+  }
+  trades[index] = updatedTrade;
+  await saveTradesJson(token, trades);
+  return true;
+};
+
 export const overwriteAllTrades = async (token, trades) => {
   await saveTradesJson(token, Array.isArray(trades) ? trades : []);
 };

@@ -9,6 +9,7 @@ import {
   saveTrade,
   getTrades,
   deleteTrade,
+  updateTrade,
   overwriteAllTrades,
   resetAll,
 } from './utils/storage.js';
@@ -28,6 +29,7 @@ export default function App() {
   const [trades, setTrades] = useState([]);
   const [tradesLoading, setTradesLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('input');
+  const [editingTrade, setEditingTrade] = useState(null);
   const [backgroundColor, setBackgroundColor] = useState(() => {
     return localStorage.getItem('backgroundColor') || '#ffffff';
   });
@@ -94,6 +96,21 @@ export default function App() {
     setTrades(Array.isArray(next) ? next : []);
   };
 
+  const handleUpdateTrade = async (trade) => {
+    await updateTrade(token, trade);
+    const next = await getTrades(token);
+    setTrades(Array.isArray(next) ? next : []);
+  };
+
+  const handleStartEdit = (trade) => {
+    setEditingTrade(trade);
+    setActiveTab('input');
+  };
+
+  const handleEditComplete = () => {
+    setEditingTrade(null);
+  };
+
   const handleColorChange = (color) => {
     setBackgroundColor(color);
     localStorage.setItem('backgroundColor', color);
@@ -143,9 +160,23 @@ export default function App() {
         <Tabs activeTab={activeTab} onTabChange={setActiveTab} />
 
         <div>
-          {activeTab === 'input' && <InputForm token={token} onSave={handleSaveTrade} />}
+          {activeTab === 'input' && (
+            <InputForm
+              token={token}
+              onSave={handleSaveTrade}
+              editingTrade={editingTrade}
+              onUpdate={handleUpdateTrade}
+              onEditComplete={handleEditComplete}
+            />
+          )}
           {activeTab === 'list' && (
-            <TradeList token={token} trades={trades} loading={tradesLoading} onDelete={handleDeleteTrade} />
+            <TradeList
+              token={token}
+              trades={trades}
+              loading={tradesLoading}
+              onDelete={handleDeleteTrade}
+              onEdit={handleStartEdit}
+            />
           )}
           {activeTab === 'stats' && <Statistics trades={trades} />}
           {activeTab === 'settings' && (
