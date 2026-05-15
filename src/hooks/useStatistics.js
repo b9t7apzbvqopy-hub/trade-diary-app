@@ -79,6 +79,21 @@ const computeStats = (trades) => {
       return { year, month, count: s.count, totalProfit: s.profit, winRate: s.winRate };
     });
 
+  // 振替別集計（通算）
+  const pairMap = new Map();
+  trades.forEach(t => {
+    const p = t.pair;
+    if (p === undefined || p === null || p === '') return;
+    if (!pairMap.has(p)) pairMap.set(p, []);
+    pairMap.get(p).push(t);
+  });
+  const pairHistory = [...pairMap.entries()]
+    .map(([pair, ts]) => {
+      const s = calc(ts);
+      return { pair, count: s.count, totalProfit: s.profit, winRate: s.winRate };
+    })
+    .sort((a, b) => b.totalProfit - a.totalProfit);
+
   return {
     today: calc(todayTrades),
     week: calc(weekTrades),
@@ -87,6 +102,7 @@ const computeStats = (trades) => {
     allTime: calc(trades),
     yearlyHistory,
     monthlyHistory,
+    pairHistory,
   };
 };
 

@@ -150,6 +150,39 @@ export default function Statistics({ trades }) {
           </div>
         )}
       </div>
+
+      {/* 振替別成績（通算） */}
+      <div style={{ marginTop: '30px' }}>
+        <h3 style={{ marginBottom: '10px', fontSize: '16px' }}>📊 振替別成績（通算）</h3>
+        {stats.pairHistory.length === 0 ? (
+          <p style={{ color: '#999', fontSize: '13px' }}>データがありません</p>
+        ) : (
+          <div style={{ overflowX: 'auto', border: '1px solid #ddd', borderRadius: '6px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '380px' }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>振替</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>損益</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>勝率</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>回数</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.pairHistory.map(row => (
+                  <tr key={row.pair}>
+                    <td style={tdStyle}>{row.pair}</td>
+                    <td style={{ ...tdStyle, textAlign: 'right', color: row.totalProfit > 0 ? '#27ae60' : '#e74c3c', fontWeight: 'bold' }}>
+                      {formatProfit(row.totalProfit)}
+                    </td>
+                    <td style={{ ...tdStyle, textAlign: 'right' }}>{row.winRate}%</td>
+                    <td style={{ ...tdStyle, textAlign: 'right' }}>{row.count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
